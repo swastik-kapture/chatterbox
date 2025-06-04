@@ -153,7 +153,9 @@ class T3(nn.Module):
         ttl, stl = text_token_lens, speech_token_lens
         for i in range(B):
             text_end = len_cond + ttl[i].item()
-            speech_start = len_cond + text_tokens.size(1)
+            # speech_start = len_cond + text_tokens.size(1)
+            # To Fix: Possible fix to speech start
+            speech_start = len_cond + ttl[i].item()
             speech_end = speech_start + stl[i].item()
             text_latents[i, :ttl[i]] = hidden_states[i, len_cond:text_end]
             speech_latents[i, :stl[i]] = hidden_states[i, speech_start:speech_end]
@@ -201,8 +203,21 @@ class T3(nn.Module):
         mask_speech = torch.arange(len_speech, device=device)[None] >= speech_token_lens[:, None]  # (B, len_speech)
         masked_text = text_tokens.masked_fill(mask_text, IGNORE_ID)
         masked_speech = speech_tokens.masked_fill(mask_speech, IGNORE_ID)
-        loss_text = F.cross_entropy(out.text_logits, masked_text, ignore_index=IGNORE_ID)
-        loss_speech = F.cross_entropy(out.speech_logits, masked_speech, ignore_index=IGNORE_ID)
+        # loss_text = F.cross_entropy(out.text_logits, masked_text, ignore_index=IGNORE_ID)
+        # loss_speech = F.cross_entropy(out.speech_logits, masked_speech, ignore_index=IGNORE_ID)
+
+        # To Fix: Possible fix to loss dimension mismatch
+        loss_text = F.cross_entropy(
+            out.text_logits.view(-1, out.text_logits.size(-1)),
+            masked_text.view(-1),
+            ignore_index=IGNORE_ID
+        )
+
+        loss_speech = F.cross_entropy(
+            out.speech_logits.view(-1, out.speech_logits.size(-1)),
+            masked_speech.view(-1),
+            ignore_index=IGNORE_ID
+        )
 
         return loss_text, loss_speech
 
